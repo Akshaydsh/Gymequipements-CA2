@@ -1,3 +1,3 @@
 # gymequipements-CA2
 
-### Akshay Shishupal 10616829
+### shivraj 10617278
