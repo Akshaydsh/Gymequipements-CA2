@@ -1,4 +1,4 @@
-# Gymequipements-CA2
+# GymEquipements-CA2
 
 ### Shivraj 10617278
 ### Chandana 10616015
