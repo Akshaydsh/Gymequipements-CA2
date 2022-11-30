@@ -48,6 +48,31 @@ def is_admin(f):
 			return redirect(url_for('login'))
 	return wrap
 
+def is_admin(f):
+	@wraps(f)
+	def wrap(*args, **kwargs):
+		if session['prof'] == 1:
+			return f(*args, **kwargs)
+		else:
+			flash('You are probably not an admin!!, Are you?', 'danger')
+			return redirect(url_for('login'))
+	return wrap
+
+def is_recep_level(f):
+	@wraps(f)
+	def wrap(*args, **kwargs):
+		if session['prof'] <= 2:
+			return f(*args, **kwargs)
+		else:
+			flash('You are probably not an authorised to view that page!!', 'danger')
+			return redirect(url_for('login'))
+	return wrap
+
+
+@app.route('/')
+def index():
+	return render_template('home.html')	
+
 if __name__ == "__main__":
 	app.secret_key = '528491@JOKER'
 	app.debug = True
