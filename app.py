@@ -18,6 +18,35 @@ app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 mysql = MySQL(app)
 
 
+def is_logged_in(f):
+	@wraps(f)
+	def wrap(*args, **kwargs):
+		if 'logged_in' in session:
+			return f(*args, **kwargs)
+		else:
+			flash('Nice try, Tricks don\'t work, bud!! Please Login :)', 'danger')
+			return redirect(url_for('login'))
+	return wrap
+
+def is_trainor(f):
+	@wraps(f)
+	def wrap(*args, **kwargs):
+		if session['prof'] == 3:
+			return f(*args, **kwargs)
+		else:
+			flash('You are probably not a trainor!!, Are you?', 'danger')
+			return redirect(url_for('login'))
+	return wrap
+
+def is_admin(f):
+	@wraps(f)
+	def wrap(*args, **kwargs):
+		if session['prof'] == 1:
+			return f(*args, **kwargs)
+		else:
+			flash('You are probably not an admin!!, Are you?', 'danger')
+			return redirect(url_for('login'))
+	return wrap
 
 if __name__ == "__main__":
 	app.secret_key = '528491@JOKER'
