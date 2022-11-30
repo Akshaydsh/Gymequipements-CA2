@@ -82,4 +82,16 @@ if __name__ == "__main__":
 	#app.run()
 
 
-
+class AddMemberForm(Form):
+    name = StringField('Name', [validators.Length(min=1, max=50)])
+    username = StringField('Username', [validators.InputRequired(), validators.NoneOf(values = values, message = "Username already taken, Please try another")])
+    password = PasswordField('Password', [
+        validators.DataRequired(),
+        validators.EqualTo('confirm', message='Passwords do not match')
+    ])
+    confirm = PasswordField('Confirm Password')
+    plan  = RadioField('Select Plan', choices = choices)
+    trainor = SelectField('Select Trainor', choices = choices2)
+    street = StringField('Street', [validators.Length(min = 1, max = 100)])
+    city = StringField('City', [validators.Length(min = 1, max = 100)])
+    phone = StringField('Phone', [validators.Length(min = 1, max = 100)])
