@@ -73,6 +73,74 @@ def is_recep_level(f):
 def index():
 	return render_template('home.html')	
 
+	@app.route('/login', methods = ['GET', 'POST'])
+def login():
+	if request.method == 'POST':
+		username = request.form['username']
+		password_candidate = request.form['password']
+
+		cur = mysql.connection.cursor()
+
+		result = cur.execute('SELECT * FROM info WHERE username = %s', [username])
+		#print(result)
+		if result>0:
+			data = cur.fetchone()
+			password = data['password']
+
+			if sha256_crypt.verify(password_candidate, password):
+				session['logged_in'] = True
+				session['username'] = username
+				session['prof'] = data['prof']
+				#session['hash'] = sha256_crypt.encrypt(username)
+				flash('You are logged in', 'success')
+				if session['prof'] == 1:
+					return redirect(url_for('adminDash'))
+				if session['prof'] == 3:
+					return redirect(url_for('trainorDash'))
+				if session['prof'] == 2:
+					return redirect(url_for('recepDash'))
+				#s = 'memberDash/%s', (username)
+				return redirect(url_for('memberDash', username = username))
+			else:
+				error = 'Invalid login'
+				return render_template('login.html', error = error)
+
+			cur.close();
+		else:
+			error = 'Username NOT FOUND'
+			return render_template('login.html', error = error)
+
+	return render_template('login.html')
+
+
+class ChangePasswordForm(Form):
+	old_password = PasswordField('Existing Password')
+	new_password = PasswordField('Password', [
+		validators.DataRequired(),
+		validators.EqualTo('confirm', message = 'Passwords aren\'t matching pal!, check \'em')
+	])
+	confirm = PasswordField('Confirm Password')
+
+
+@app.route('/update_password/<string:username>', methods = ['GET', 'POST'])
+def update_password(username):
+	form = ChangePasswordForm(request.form)
+	if request.method == 'POST' and form.validate():
+		new = form.new_password.data
+		entered = form.old_password.data
+		cur = mysql.connection.cursor()
+		cur.execute("SELECT password FROM info WHERE username = %s", [username])
+		old = (cur.fetchone())['password']
+		if sha256_crypt.verify(entered, old):
+			cur.execute("UPDATE info SET password = %s WHERE username = %s", (sha256_crypt.encrypt(new), username))
+			mysql.connection.commit()
+			cur.close()
+			flash('New password will be in effect from next login!!', 'info')
+			return redirect(url_for('memberDash', username = session['username']))
+		cur.close()
+		flash('Old password you entered is wrong!!, try again', 'warning')
+	return render_template('updatePassword.html', form = form)
+
 if __name__ == "__main__":
 	app.secret_key = '528491@JOKER'
 	app.debug = True
