@@ -141,6 +141,78 @@ def update_password(username):
 		flash('Old password you entered is wrong!!, try again', 'warning')
 	return render_template('updatePassword.html', form = form)
 
+class DeleteRecepForm(Form):
+	username = SelectField(u'Choose which one you wanted to delete', choices=choices)
+
+
+
+@app.route('/deleteTrainor', methods = ['GET', 'POST'])
+@is_logged_in
+@is_admin
+def deleteTrainor():
+	choices.clear()
+	cur = mysql.connection.cursor()
+	q = cur.execute("SELECT username FROM trainors")
+	b = cur.fetchall()
+	for i in range(q):
+		tup = (b[i]['username'],b[i]['username'])
+		choices.append(tup)
+	form = DeleteRecepForm(request.form)
+	if len(choices)==1:
+		flash('You cannot remove your only Trainor!!', 'danger')
+		return redirect(url_for('adminDash'))
+	if request.method == 'POST':
+		#app.logger.info(form.username.data)
+		username = form.username.data
+		q = cur.execute("SELECT username FROM trainors WHERE username != %s", [username])
+		b = cur.fetchall()
+		new = b[0]['username']
+		cur.execute("UPDATE members SET trainor = %s WHERE trainor = %s", (new, username))
+		cur.execute("DELETE FROM trainors WHERE username = %s", [username])
+		cur.execute("DELETE FROM info WHERE username = %s", [username])
+		mysql.connection.commit()
+		cur.close()
+		choices.clear()
+		flash('You removed your Trainor!!', 'success')
+		return redirect(url_for('adminDash'))
+	return render_template('deleteRecep.html', form = form)
+
+
+@app.route('/addRecep', methods = ['GET', 'POST'])
+@is_logged_in
+@is_admin
+def addRecep():
+	values.clear()
+	cur = mysql.connection.cursor()
+	q = cur.execute("SELECT username FROM info")
+	b = cur.fetchall()
+	for i in range(q):
+		values.append(b[i]['username'])
+	#app.logger.info(b[0]['username'])
+	#res = values.fetchall()
+	#app.logger.info(res)
+	cur.close()
+	form = AddTrainorForm(request.form)
+	if request.method == 'POST' and form.validate():
+		#app.logger.info("setzdgxfhcgjvkhbjlkn")
+		name = form.name.data
+		username = form.username.data
+		password = sha256_crypt.encrypt(str(form.password.data))
+		street = form.street.data
+		city = form.city.data
+		phone = form.phone.data
+
+		cur = mysql.connection.cursor()
+
+		cur.execute("INSERT INTO info(name, username, password, street, city, prof, phone) VALUES(%s, %s, %s, %s, %s, %s, %s)", (name, username, password, street, city, 2,phone))
+		cur.execute("INSERT INTO receps(username) VALUES(%s)", [username])
+		mysql.connection.commit()
+		cur.close()
+		flash('You recruited a new Receptionist!!', 'success')
+		return redirect(url_for('adminDash'))
+	return render_template('addRecep.html', form=form)
+
+
 if __name__ == "__main__":
 	app.secret_key = '528491@JOKER'
 	app.debug = True
