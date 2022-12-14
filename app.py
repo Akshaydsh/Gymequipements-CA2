@@ -213,6 +213,72 @@ def addRecep():
 	return render_template('addRecep.html', form=form)
 
 
+class DeleteRecepForm(Form):
+	username = SelectField(u'Choose which one you wanted to delete', choices=choices)
+
+
+
+@app.route('/deleteRecep', methods = ['GET', 'POST'])
+@is_logged_in
+@is_admin
+def deleteRecep():
+	choices.clear()
+	cur = mysql.connection.cursor()
+	q = cur.execute("SELECT username FROM receps")
+	b = cur.fetchall()
+	for i in range(q):
+		tup = (b[i]['username'],b[i]['username'])
+		choices.append(tup)
+	if len(choices)==1:
+		flash('You cannot remove your only receptionist!!', 'danger')
+		return redirect(url_for('adminDash'))
+	form = DeleteRecepForm(request.form)
+	if request.method == 'POST':
+		#app.logger.info(form.username.data)
+		username = form.username.data
+		cur.execute("DELETE FROM receps WHERE username = %s", [username])
+		cur.execute("DELETE FROM info WHERE username = %s", [username])
+		mysql.connection.commit()
+		cur.close()
+		choices.clear()
+		flash('You removed your receptionist!!', 'success')
+		return redirect(url_for('adminDash'))
+	return render_template('deleteRecep.html', form = form)
+
+
+class AddEquipForm(Form):
+	name = StringField('Name', [validators.Length(min = 1, max = 100)])
+	count = IntegerField('Count', [validators.NumberRange(min = 1, max = 25)])
+
+
+@app.route('/addEquip', methods = ['GET', 'POST'])
+@is_logged_in
+@is_admin
+def addEquip():
+	form = AddEquipForm(request.form)
+	if request.method == 'POST' and form.validate():
+		name = form.name.data
+		count = form.count.data
+		cur = mysql.connection.cursor()
+		q = cur.execute("SELECT name FROM equip")
+		equips = []
+		b = cur.fetchall()
+		for i in range(q):
+			equips.append(b[i]['name'])
+		if name in equips:
+			cur.execute("UPDATE equip SET count = count+%s WHERE name = %s", (count, name))
+		else:
+			cur.execute("INSERT INTO equip(name, count) VALUES(%s, %s)", (name, count))
+		mysql.connection.commit()
+		cur.close()
+		flash('You added a new Equipment!!', 'success')
+		return redirect(url_for('adminDash'))
+	return render_template('addEquip.html', form = form)
+
+class RemoveEquipForm(Form):
+	name = RadioField('Name', choices = choices)
+	count = IntegerField('Count', [validators.InputRequired()])
+
 if __name__ == "__main__":
 	app.secret_key = '528491@JOKER'
 	app.debug = True
