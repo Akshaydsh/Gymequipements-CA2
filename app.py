@@ -279,15 +279,6 @@ class RemoveEquipForm(Form):
 	name = RadioField('Name', choices = choices)
 	count = IntegerField('Count', [validators.InputRequired()])
 
-if __name__ == "__main__":
-	app.secret_key = '528491@JOKER'
-	app.debug = True
-	manager = Manager(app)
-	#manager.secret_key = '528491@siva'
-	manager.run()
-	#app.run()
-
-
 class AddMemberForm(Form):
     name = StringField('Name', [validators.Length(min=1, max=50)])
     username = StringField('Username', [validators.InputRequired(), validators.NoneOf(values = values, message = "Username already taken, Please try another")])
@@ -392,3 +383,88 @@ def viewDetails():
 @is_recep_level
 def recepDash():
 	return render_template('recepDash.html')
+
+class trainorForm(Form):
+	name = RadioField('Select Username', choices = choices)
+	date = DateField('Date', format='%Y-%m-%d')
+	report = StringField('Report', [validators.InputRequired()])
+	rate = RadioField('Result', choices = [('good', 'good'),('average', 'average'),('poor', 'poor') ])
+
+
+@app.route('/trainorDash', methods = ['GET', 'POST'])
+@is_logged_in
+@is_trainor
+def trainorDash():
+	choices.clear()
+	cur = mysql.connection.cursor()
+	cur.execute("SELECT name, count FROM equip")
+	equips = cur.fetchall()
+	#app.logger.info(equips)
+	cur.execute("SELECT username FROM members WHERE trainor = %s", [session['username']])
+	members_under = cur.fetchall()
+	cur.close()
+	cur = mysql.connection.cursor()
+
+	q = cur.execute("SELECT username FROM members WHERE trainor = %s", [session['username']])
+	b = cur.fetchall()
+	for i in range(q):
+		tup = (b[i]['username'],b[i]['username'])
+		choices.append(tup)
+	cur.close()
+
+	form = trainorForm(request.form)
+
+	if request.method == 'POST':
+		date = form.date.data
+		username = form.name.data
+		report = form.report.data
+		rate = form.rate.data
+		if rate == 'good':
+			rate = 1
+		elif rate == 'average':
+			rate = 2
+		else:
+			rate = 3
+		#app.logger.info(request.form.input_date)
+		#app.logger.info(date)
+		if datetime.now().date()<date:
+			flash('You cannot predict furture, buoy!!', 'warning')
+			choices.clear()
+			return redirect(url_for('trainorDash'))
+		
+
+		cur = mysql.connection.cursor()
+		p = cur.execute("SELECT date FROM progress WHERE username = %s", [username])
+		entered = []
+		q = cur.fetchall()
+		for i in range(p):
+			entered.append(q[i]['date'])
+		
+
+		if date in entered:
+			cur.execute("UPDATE progress SET daily_result = %s, rate = %s WHERE username = %s and date = %s", (report,rate, username, date))
+			mysql.connection.commit()
+			cur.close()
+			choices.clear()
+			flash('Succesfully updated!', 'success')
+			return redirect(url_for('trainorDash'))
+		
+
+		cur.execute("INSERT INTO progress(username, date, daily_result, rate) VALUES(%s, %s, %s, %s)", (username, date, report, rate))
+		mysql.connection.commit()
+		cur.close()
+		choices.clear()
+		flash('Progress updated and Reported', 'info')
+		return redirect(url_for('trainorDash'))
+
+	return render_template('trainorDash.html', equips = equips, form = form, members = members_under)	
+
+if __name__ == "__main__":
+	app.secret_key = '528491@JOKER'
+	app.debug = True
+	manager = Manager(app)
+	#manager.secret_key = '528491@siva'
+	manager.run()
+	#app.run()
+
+
