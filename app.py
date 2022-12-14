@@ -459,6 +459,86 @@ def trainorDash():
 
 	return render_template('trainorDash.html', equips = equips, form = form, members = members_under)	
 
+class UpdatePlanForm(Form):
+    name = StringField('Plan Name', [validators.Length(min=1, max=50)])
+    exercise = StringField('Exercise', [validators.Length(min = 1, max = 100)])
+    reps = IntegerField('Reps', [validators.NumberRange(min = 1, max = 20)])
+    sets = IntegerField('Sets', [validators.NumberRange(min = 1, max = 20)])
+
+
+@app.route('/updatePlans', methods = ['GET', 'POST'])
+@is_trainor
+def updatePlans():
+	form = UpdatePlanForm(request.form)
+	if request.method == 'POST' and form.validate():
+		name = form.name.data
+		exercise = form.exercise.data
+		reps = form.reps.data
+		sets = form.sets.data
+		cur = mysql.connection.cursor()
+		cur.execute("SELECT name, exercise FROM plans WHERE name = %s and exercise = %s", (name, exercise))
+		result = cur.fetchall()
+		if len(result)>0:
+			cur.execute("UPDATE plans SET sets=%s, reps= %s WHERE name = %s and exercise = %s", (sets, reps, name, exercise))
+		else:
+			cur.execute("INSERT INTO plans(name, exercise, sets, reps) VALUES(%s, %s, %s, %s)", (name, exercise, sets, reps))
+		mysql.connection.commit()
+		cur.close()
+		flash('You have updated the plan schemes', 'success')
+		return redirect(url_for('trainorDash'))
+	return render_template('addPlan.html', form = form)
+
+
+
+@app.route('/memberDash/<string:username>')
+@is_logged_in
+def memberDash(username):
+	if session['prof']==4 and username!=session['username']:
+		flash('You aren\'t authorised to view other\'s Dashboards', 'danger')
+		return redirect(url_for('memberDash', username = session['username'])) 
+	cur = mysql.connection.cursor()
+	cur.execute("SELECT plan FROM members WHERE username = %s", [username])
+	plan = (cur.fetchone())['plan']
+	cur.execute("SELECT exercise, reps, sets FROM plans WHERE name = %s", [plan])
+	scheme = cur.fetchall()
+	n = cur.execute("SELECT date, daily_result, rate FROM progress WHERE username = %s ORDER BY date DESC", [username])
+	progress = cur.fetchall()
+	result = []
+	for i in range(n):
+		result.append(int(progress[i]['rate']))
+	good = result.count(1)
+	poor = result.count(3)
+	average = result.count(2)
+	total = good + poor + average
+	good = round((good/total) * 100, 2)
+	average = round((average/total) * 100, 2)
+	poor = round((poor/total) * 100, 2)
+	cur.close()
+	return render_template('memberDash.html',user = username, plan = plan, scheme = scheme, progress = progress, good = good, poor = poor, average = average)
+
+
+
+@app.route('/profile/<string:username>')
+@is_logged_in
+def profile(username):
+	if username == session['username'] or session['prof']==1 or session['prof']==2:
+		cur = mysql.connection.cursor()
+		cur.execute("SELECT * FROM info WHERE username = %s", [username])
+		result = cur.fetchone()
+		return render_template('profile.html', result = result)
+	flash('You cannot view other\'s profile', 'warning')
+	if session['prof']==3:
+		return redirect(url_for('trainorDash'))
+	return redirect(url_for('memberDash', username = username))
+
+
+class EditForm(Form):
+    name = StringField('Name', [validators.Length(min=1, max=50)])
+    street = StringField('Street', [validators.Length(min = 1, max = 100)])
+    city = StringField('City', [validators.Length(min = 1, max = 100)])
+    phone = StringField('Phone', [validators.Length(min = 1, max = 100)])
+
+
 if __name__ == "__main__":
 	app.secret_key = '528491@JOKER'
 	app.debug = True
