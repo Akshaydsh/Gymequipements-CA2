@@ -539,6 +539,69 @@ class EditForm(Form):
     phone = StringField('Phone', [validators.Length(min = 1, max = 100)])
 
 
+
+@app.route('/edit_profile/<string:username>', methods = ['GET', 'POST'])
+@is_logged_in
+def edit_profile(username):
+
+	if username != session['username']:
+		flash('You aren\'t authorised to edit other\'s details', 'warning')
+		if session['prof']==4:
+			return redirect(url_for('memberDash', username = username))
+		if session['prof']==1:
+			return redirect(url_for('adminDash'))
+		if session['prof']==2:
+			return redirect(url_for('recepDash', username = username))
+		if session['prof']==3:
+			return redirect(url_for('trainorDash', username = username))
+
+	cur = mysql.connection.cursor()
+	cur.execute("SELECT * FROM info WHERE username = %s", [username]);
+	result = cur.fetchone()
+
+	form = EditForm(request.form)
+	
+	form.name.data = result['name']
+	form.street.data = result['street']
+	form.city.data = result['city']
+	form.phone.data = result['phone']
+
+	cur.close()
+
+	if request.method == 'POST' and form.validate():
+		#app.logger.info("setzdgxfhcgjvkhbjlkn")
+		name = request.form['name']
+		street = request.form['street']
+		city = request.form['city']
+		phone = request.form['phone']
+		app.logger.info(name)
+		app.logger.info(street)
+		app.logger.info(city)
+		cur = mysql.connection.cursor()
+
+		q = cur.execute("UPDATE info SET name = %s, street = %s, city = %s, phone = %s WHERE username = %s", (name, street, city, phone, username))
+		app.logger.info(q)
+		mysql.connection.commit()
+		cur.close()
+		flash('You successfully updated your profile!!', 'success')
+		if session['prof']==4:
+			return redirect(url_for('memberDash', username = username))
+		if session['prof']==1:
+			return redirect(url_for('adminDash'))
+		if session['prof']==2:
+			return redirect(url_for('recepDash', username = username))
+		if session['prof']==3:
+			return redirect(url_for('trainorDash', username = username))
+	return render_template('edit_profile.html', form=form)
+
+
+@app.route('/logout')
+@is_logged_in
+def logout():
+	session.clear()
+	flash('You are now logged out', 'success')
+	return redirect(url_for('login'))
+
 if __name__ == "__main__":
 	app.secret_key = '528491@JOKER'
 	app.debug = True
