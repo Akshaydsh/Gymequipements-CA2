@@ -301,3 +301,94 @@ class AddMemberForm(Form):
     street = StringField('Street', [validators.Length(min = 1, max = 100)])
     city = StringField('City', [validators.Length(min = 1, max = 100)])
     phone = StringField('Phone', [validators.Length(min = 1, max = 100)])
+@app.route('/addMember', methods = ['GET', 'POST'])
+@is_logged_in
+@is_recep_level
+def addMember():
+	choices.clear()
+	choices2.clear()
+	cur = mysql.connection.cursor()
+	
+	q = cur.execute("SELECT username FROM info")
+	b = cur.fetchall()
+	for i in range(q):
+		values.append(b[i]['username'])
+	
+	q = cur.execute("SELECT DISTINCT name FROM plans")
+	b = cur.fetchall()
+	for i in range(q):
+		tup = (b[i]['name'],b[i]['name'])
+		choices.append(tup)
+	
+	q = cur.execute("SELECT username FROM trainors")
+	b = cur.fetchall()
+	for i in range(q):
+		tup = (b[i]['username'],b[i]['username'])
+		choices2.append(tup)
+	
+	cur.close()
+	
+	form = AddMemberForm(request.form)
+	if request.method == 'POST' and form.validate():
+		#app.logger.info("setzdgxfhcgjvkhbjlkn")
+		name = form.name.data
+		username = form.username.data
+		password = sha256_crypt.encrypt(str(form.password.data))
+		street = form.street.data
+		city = form.city.data
+		phone = form.phone.data
+		plan = form.plan.data
+		trainor = form.trainor.data
+		cur = mysql.connection.cursor()
+
+		cur.execute("INSERT INTO info(name, username, password, street, city, prof, phone) VALUES(%s, %s, %s, %s, %s, %s, %s)", (name, username, password, street, city, 4,phone))
+		cur.execute("INSERT INTO members(username, plan, trainor) VALUES(%s, %s, %s)", (username, plan, trainor))
+		mysql.connection.commit()
+		cur.close()
+		choices2.clear()
+		choices.clear()
+		flash('You added a new member!!', 'success')
+		if(session['prof']==1):
+			return redirect(url_for('adminDash'))
+		return redirect(url_for('recepDash'))
+	return render_template('addMember.html', form=form)
+
+
+@app.route('/deleteMember', methods = ['GET', 'POST'])
+@is_logged_in
+@is_recep_level
+def deleteMember():
+	choices.clear()
+	cur = mysql.connection.cursor()
+	q = cur.execute("SELECT username FROM members")
+	b = cur.fetchall()
+	for i in range(q):
+		tup = (b[i]['username'],b[i]['username'])
+		choices.append(tup)
+	form = DeleteRecepForm(request.form)
+	if request.method == 'POST':
+		username = form.username.data
+		cur = mysql.connection.cursor()
+		cur.execute("DELETE FROM members WHERE username = %s", [username])
+		cur.execute("DELETE FROM info WHERE username = %s", [username])
+		mysql.connection.commit()
+		cur.close()
+		choices.clear()
+		flash('You deleted a member from the GYM!!', 'success')
+		if(session['prof']==1):
+			return redirect(url_for('adminDash'))
+		return redirect(url_for('recepDash'))
+	return render_template('deleteRecep.html', form = form)
+
+@app.route('/viewDetails')
+def viewDetails():
+	cur = mysql.connection.cursor()
+	cur.execute("SELECT username FROM info WHERE username != %s", [session['username']])
+	result = cur.fetchall()
+	return render_template('viewDetails.html', result = result)
+
+
+@app.route('/recepDash')
+@is_recep_level
+def recepDash():
+	return render_template('recepDash.html')
